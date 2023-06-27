@@ -1,0 +1,26 @@
+[workspace.package]
+version = "2.56.0"
+authors = ["Federico Mena Quintero <federico@gnome.org>", "Many others"]
+description = "Render SVG documents with Cairo"
+license = "LGPL-2.1-or-later"
+homepage = "https://wiki.gnome.org/Projects/LibRsvg"
+repository = "https://gitlab.gnome.org/GNOME/librsvg/"
+edition = "2021"
+rust-version = "1.65.0"
+
+[profile.overflow]
+inherits = "release"
+overflow-checks = true
+
+[workspace]
+members = [
+    "gdk-pixbuf-loader",
+    "librsvg-c",
+    "rsvg",
+    "rsvg_convert",
+    "rsvg-bench",
+]
+default-members = [
+    "rsvg",
+    "rsvg_convert",
+]

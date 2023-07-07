@@ -191,12 +191,15 @@ check-local:
 	CARGO_TARGET_DIR=$(CARGO_TARGET_DIR)			\
 	LIBRSVG_BUILD_DIR=$(LIBRSVG_BUILD_DIR)			\
 	TESTS_OUTPUT_DIR=$(LIBRSVG_BUILD_DIR)/tests/output	\
-	$(CARGO) --locked test $(CARGO_VERBOSE) $(CARGO_TARGET_ARGS) $(CARGO_RELEASE_ARGS) --workspace -- --include-ignored -Z unstable-options
+	$(CARGO) --locked test $(CARGO_VERBOSE) $(CARGO_TARGET_ARGS) $(CARGO_RELEASE_ARGS) --workspace -- --include-ignored
 
 clean-local:
 	cd $(top_srcdir) &&			\
 	CARGO_TARGET_DIR=$(CARGO_TARGET_DIR)	\
 	$(CARGO) clean
+
+distclean-local:
+	-rm -rf $(LIBRSVG_BUILD_DIR)/tests/output
 
 distcheck-hook:
 	if test -z "${DESTDIR}";						\
@@ -322,6 +325,7 @@ test_fixtures =									\
 	$(wildcard $(srcdir)/rsvg/tests/fixtures/reftests/svg2/*.png)		\
 	$(wildcard $(srcdir)/rsvg/tests/fixtures/reftests/bugs-reftests/*.svg)	\
 	$(wildcard $(srcdir)/rsvg/tests/fixtures/reftests/svg2-reftests/*.svg)	\
+	$(wildcard $(srcdir)/rsvg/tests/fixtures/reftests/svg2-reftests/*.png)	\
 	$(wildcard $(srcdir)/rsvg/tests/fixtures/render-crash/*.svg)		\
 	$(wildcard $(srcdir)/rsvg/tests/fixtures/text/*.svg)			\
 	$(wildcard $(srcdir)/rsvg/tests/fixtures/dimensions/*.svg)		\

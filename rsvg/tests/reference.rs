@@ -1150,3 +1150,15 @@ test_svg_reference!(
     "tests/fixtures/reftests/bugs-reftests/bug930-invalid-clip-path-transform.svg",
     "tests/fixtures/reftests/bugs-reftests/bug930-invalid-clip-path-transform-ref.svg"
 );
+
+test_svg_reference!(
+    bug_985_image_rendering_property,
+    "tests/fixtures/reftests/svg2-reftests/image-rendering-985.svg",
+    "tests/fixtures/reftests/svg2-reftests/image-rendering-985-ref.svg"
+);
+
+test_svg_reference!(
+    bug_992_use_symbol_cascade,
+    "tests/fixtures/reftests/bugs/use-symbol-cascade-992.svg",
+    "tests/fixtures/reftests/bugs/use-symbol-cascade-992-ref.svg"
+);

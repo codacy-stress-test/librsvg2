@@ -3,7 +3,7 @@ AC_PREREQ([2.69])
 # Package version, the "human readable" version
 m4_define([rsvg_major_version],[2])
 m4_define([rsvg_minor_version],[56])
-m4_define([rsvg_micro_version],[90]) # Keep this in sync with Cargo.toml and doc/librsvg.toml
+m4_define([rsvg_micro_version],[91]) # Keep this in sync with Cargo.toml and doc/librsvg.toml
 m4_define([rsvg_version],[rsvg_major_version.rsvg_minor_version.rsvg_micro_version])
 
 # Library version information.  To make a release:
@@ -56,9 +56,9 @@ AC_SUBST([LIBRSVG_MAJOR_VERSION],[rsvg_major_version])
 AC_SUBST([LIBRSVG_MINOR_VERSION],[rsvg_minor_version])
 AC_SUBST([LIBRSVG_MICRO_VERSION],[rsvg_micro_version])
 
-dnl ===========================================================================
-dnl Please update COMPILING.md with version numbers if these change
-CAIRO_REQUIRED=1.16.0
+dnl ===================================================================================
+dnl Please update devel-docs/devel_environment.rst with version numbers if these change
+CAIRO_REQUIRED=1.17.0
 dnl This corresponds to Freetype2 2.8
 FREETYPE2_REQUIRED=20.0.14
 GDK_PIXBUF_REQUIRED=2.20
@@ -108,7 +108,7 @@ AS_IF(test x$RUSTC = xno,
 dnl MSRV - Minimum Supported Rust Version
 dnl If you change this, please update the "_manual_setup" section of devel-docs/devel_environment.rst
 dnl keep in sync with Cargo.toml
-MINIMUM_RUST_VER=1.65.0
+MINIMUM_RUST_VER=1.66.0
 rust_version=`$RUSTC --version | sed -e 's/^rustc //g'`
 AX_COMPARE_VERSION([$rust_version],[lt],[$MINIMUM_RUST_VER], [
     AC_MSG_ERROR([librsvg needs at least rustc version $MINIMUM_RUST_VER])

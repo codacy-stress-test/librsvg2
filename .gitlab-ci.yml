@@ -154,8 +154,6 @@ cargo test - opensuse@aarch64:
       artifacts: false
     - job: check
       artifacts: false
-  # The tests fail on aarch64 - some rendering differences.  Needs diagnosis.
-  allow_failure: true
 
 cargo test - fedora@x86_64:
   extends:
@@ -388,6 +386,7 @@ msys2-mingw64:
       - _build\tests\*.log
       - _build\tests\output
     expire_in: 1 day
+  allow_failure: true
 
 vs2017-x64:
   # TODO: Uncomment this when ready to merge.
@@ -484,7 +483,7 @@ cargo-doc:
     - cargo doc --workspace --document-private-items --no-deps
     - cp -r target/doc/* public/internals
     - mkdir -p public/doc
-    - cargo doc --no-deps --package rsvg
+    - cargo doc --no-deps --package librsvg
     - cp -r target/doc/* public/doc
   artifacts:
     paths:

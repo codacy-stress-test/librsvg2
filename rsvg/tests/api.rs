@@ -1,5 +1,4 @@
-use cairo;
-use rsvg::surface_utils::shared_surface::{SharedImageSurface, SurfaceType};
+use rsvg::tests_only::{SharedImageSurface, SurfaceType};
 use rsvg::{CairoRenderer, RenderingError};
 
 use rsvg::test_utils::load_svg;
@@ -59,7 +58,7 @@ fn render_layer() {
     };
 
     let output_surf = res
-        .and_then(|_| Ok(SharedImageSurface::wrap(output, SurfaceType::SRgb).unwrap()))
+        .map(|_| SharedImageSurface::wrap(output, SurfaceType::SRgb).unwrap())
         .unwrap();
 
     let reference_surf = cairo::ImageSurface::create(cairo::Format::ARgb32, 300, 300).unwrap();
@@ -120,7 +119,7 @@ fn untransformed_element() {
     };
 
     let output_surf = res
-        .and_then(|_| Ok(SharedImageSurface::wrap(output, SurfaceType::SRgb).unwrap()))
+        .map(|_| SharedImageSurface::wrap(output, SurfaceType::SRgb).unwrap())
         .unwrap();
 
     let reference_surf = cairo::ImageSurface::create(cairo::Format::ARgb32, 300, 300).unwrap();
@@ -171,7 +170,7 @@ fn set_stylesheet() {
     };
 
     let output_surf = res
-        .and_then(|_| Ok(SharedImageSurface::wrap(output, SurfaceType::SRgb).unwrap()))
+        .map(|_| SharedImageSurface::wrap(output, SurfaceType::SRgb).unwrap())
         .unwrap();
 
     let reference_surf = cairo::ImageSurface::create(cairo::Format::ARgb32, 100, 100).unwrap();

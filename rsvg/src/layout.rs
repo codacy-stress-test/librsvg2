@@ -5,7 +5,7 @@
 use std::rc::Rc;
 use std::sync::Arc;
 
-use cssparser::RGBA;
+use cssparser::Color;
 use float_cmp::approx_eq;
 
 use crate::aspect_ratio::AspectRatio;
@@ -26,10 +26,12 @@ use crate::properties::{
     TextDecoration, TextRendering, UnicodeBidi, VectorEffect, XmlLang,
 };
 use crate::rect::Rect;
+use crate::rsvg_log;
 use crate::session::Session;
 use crate::surface_utils::shared_surface::SharedImageSurface;
 use crate::transform::Transform;
 use crate::unit_interval::UnitInterval;
+use crate::{borrow_element_as, is_element_of_type};
 
 /// SVG Stacking context, an inner node in the layout tree.
 ///
@@ -154,7 +156,7 @@ pub struct FontProperties {
 
 pub struct Filter {
     pub filter_list: FilterValueList,
-    pub current_color: RGBA,
+    pub current_color: Color,
     pub stroke_paint_source: Arc<PaintSource>,
     pub fill_paint_source: Arc<PaintSource>,
     pub normalize_values: NormalizeValues,

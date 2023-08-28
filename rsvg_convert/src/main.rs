@@ -19,16 +19,14 @@ mod windows_imports {
 #[cfg(windows)]
 use self::windows_imports::*;
 
-use cssparser::{_cssparser_internal_to_lowercase, match_ignore_ascii_case};
+use cssparser::{match_ignore_ascii_case, Color};
 
 use librsvg_c::{handle::PathOrUrl, sizing::LegacySize};
 use rsvg::rsvg_convert_only::{
-    AspectRatio, CssLength, Horizontal, Length, Normalize, NormalizeParams, Parse, Signed, ULength,
-    Unsigned, Validate, Vertical, ViewBox,
+    set_source_color_on_cairo, AspectRatio, CssLength, Dpi, Horizontal, Length, Normalize,
+    NormalizeParams, Parse, Rect, Signed, ULength, Unsigned, Validate, Vertical, ViewBox,
 };
-use rsvg::{
-    AcceptLanguage, CairoRenderer, Color, Dpi, Language, LengthUnit, Loader, Rect, RenderingError,
-};
+use rsvg::{AcceptLanguage, CairoRenderer, Language, LengthUnit, Loader, RenderingError};
 
 use std::ffi::OsString;
 use std::io;
@@ -348,14 +346,8 @@ impl Surface {
     ) -> Result<(), Error> {
         let cr = cairo::Context::new(self)?;
 
-        if let Some(Color::RGBA(rgba)) = background_color {
-            cr.set_source_rgba(
-                rgba.red_f32().into(),
-                rgba.green_f32().into(),
-                rgba.blue_f32().into(),
-                rgba.alpha_f32().into(),
-            );
-
+        if let Some(color) = background_color {
+            set_source_color_on_cairo(&cr, &color);
             cr.paint()?;
         }
 
@@ -1099,10 +1091,7 @@ fn parse_args() -> Result<Converter, Error> {
         None => Language::FromEnvironment,
         Some(s) => AcceptLanguage::parse(s)
             .map(Language::AcceptLanguage)
-            .map_err(|e| {
-                let desc = format!("{e}");
-                clap::Error::raw(clap::error::ErrorKind::InvalidValue, desc)
-            })?,
+            .map_err(|e| clap::Error::raw(clap::error::ErrorKind::InvalidValue, e))?,
     };
 
     let background_str: &String = matches
@@ -1259,8 +1248,8 @@ impl<T> NotFound for Result<T, clap::Error> {
 fn parse_background_color(s: &str) -> Result<Option<Color>, String> {
     match s {
         "none" | "None" => Ok(None),
-        _ => <Color as Parse>::parse_str(s).map(Some).map_err(|_| {
-            format!("Invalid value: The argument '{s}' can not be parsed as a CSS color value")
+        _ => <Color as Parse>::parse_str(s).map(Some).map_err(|e| {
+            format!("Invalid value: The argument '{s}' can not be parsed as a CSS color value: {e}")
         }),
     }
 }

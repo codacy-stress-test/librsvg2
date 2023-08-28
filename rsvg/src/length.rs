@@ -42,7 +42,7 @@
 //!
 //! [diag]: https://www.w3.org/TR/SVG/coords.html#Units
 
-use cssparser::{match_ignore_ascii_case, Parser, Token, _cssparser_internal_to_lowercase};
+use cssparser::{match_ignore_ascii_case, Parser, Token};
 use std::f64::consts::*;
 use std::fmt;
 use std::marker::PhantomData;
@@ -111,6 +111,7 @@ pub struct RsvgLength {
 }
 
 impl RsvgLength {
+    /// Constructs a CSS length value.
     pub fn new(l: f64, unit: LengthUnit) -> RsvgLength {
         RsvgLength { length: l, unit }
     }
@@ -547,7 +548,7 @@ impl fmt::Display for LengthUnit {
 mod tests {
     use super::*;
 
-    use crate::float_eq_cairo::ApproxEqCairo;
+    use crate::{assert_approx_eq_cairo, float_eq_cairo::ApproxEqCairo};
 
     #[test]
     fn parses_default() {

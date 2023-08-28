@@ -4,6 +4,7 @@ use markup5ever::{expanded_name, local_name, namespace_url, ns};
 
 use crate::aspect_ratio::*;
 use crate::bbox::BoundingBox;
+use crate::coord_units;
 use crate::coord_units::CoordUnits;
 use crate::document::{AcquiredNodes, NodeId};
 use crate::drawing_ctx::{ClipMode, DrawingCtx, Viewport};
@@ -32,7 +33,7 @@ impl ElementTrait for Group {
         viewport: &Viewport,
         draw_ctx: &mut DrawingCtx,
         clipping: bool,
-    ) -> Result<BoundingBox, RenderingError> {
+    ) -> Result<BoundingBox, InternalRenderingError> {
         let values = cascaded.get();
 
         let elt = node.borrow_element();
@@ -77,7 +78,7 @@ impl ElementTrait for Switch {
         viewport: &Viewport,
         draw_ctx: &mut DrawingCtx,
         clipping: bool,
-    ) -> Result<BoundingBox, RenderingError> {
+    ) -> Result<BoundingBox, InternalRenderingError> {
         let values = cascaded.get();
 
         let elt = node.borrow_element();
@@ -300,7 +301,7 @@ impl ElementTrait for Svg {
         viewport: &Viewport,
         draw_ctx: &mut DrawingCtx,
         clipping: bool,
-    ) -> Result<BoundingBox, RenderingError> {
+    ) -> Result<BoundingBox, InternalRenderingError> {
         let values = cascaded.get();
 
         let elt = node.borrow_element();
@@ -395,7 +396,7 @@ impl ElementTrait for Use {
         viewport: &Viewport,
         draw_ctx: &mut DrawingCtx,
         clipping: bool,
-    ) -> Result<BoundingBox, RenderingError> {
+    ) -> Result<BoundingBox, InternalRenderingError> {
         if let Some(link) = self.link.as_ref() {
             let values = cascaded.get();
             let params = NormalizeParams::new(values, viewport);
@@ -589,7 +590,7 @@ impl ElementTrait for Link {
         viewport: &Viewport,
         draw_ctx: &mut DrawingCtx,
         clipping: bool,
-    ) -> Result<BoundingBox, RenderingError> {
+    ) -> Result<BoundingBox, InternalRenderingError> {
         // If this element is inside of <text>, do not draw it.
         // The <text> takes care of it.
         for an in node.ancestors() {

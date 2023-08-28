@@ -9,6 +9,7 @@ use markup5ever::{expanded_name, local_name, namespace_url, ns};
 use crate::angle::Angle;
 use crate::aspect_ratio::*;
 use crate::bbox::BoundingBox;
+use crate::borrow_element_as;
 use crate::document::AcquiredNodes;
 use crate::drawing_ctx::{DrawingCtx, Viewport};
 use crate::element::{set_attribute, ElementTrait};
@@ -17,22 +18,23 @@ use crate::float_eq_cairo::ApproxEqCairo;
 use crate::layout::{self, Shape, StackingContext};
 use crate::length::*;
 use crate::node::{CascadedValues, Node, NodeBorrow, NodeDraw};
+use crate::parse_identifiers;
 use crate::parsers::{Parse, ParseValue};
 use crate::path_builder::{arc_segment, ArcParameterization, CubicBezierCurve, Path, PathCommand};
 use crate::rect::Rect;
+use crate::rsvg_log;
 use crate::session::Session;
 use crate::transform::Transform;
 use crate::viewbox::*;
 use crate::xml::Attributes;
 
 // markerUnits attribute: https://www.w3.org/TR/SVG/painting.html#MarkerElement
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Default, Copy, Clone, PartialEq)]
 enum MarkerUnits {
     UserSpaceOnUse,
+    #[default]
     StrokeWidth,
 }
-
-enum_default!(MarkerUnits, MarkerUnits::StrokeWidth);
 
 impl Parse for MarkerUnits {
     fn parse<'i>(parser: &mut Parser<'i, '_>) -> Result<MarkerUnits, ParseError<'i>> {
@@ -52,7 +54,12 @@ enum MarkerOrient {
     Angle(Angle),
 }
 
-enum_default!(MarkerOrient, MarkerOrient::Angle(Angle::new(0.0)));
+impl Default for MarkerOrient {
+    #[inline]
+    fn default() -> MarkerOrient {
+        MarkerOrient::Angle(Angle::new(0.0))
+    }
+}
 
 impl Parse for MarkerOrient {
     fn parse<'i>(parser: &mut Parser<'i, '_>) -> Result<MarkerOrient, ParseError<'i>> {
@@ -115,7 +122,7 @@ impl Marker {
         clipping: bool,
         marker_type: MarkerType,
         marker: &layout::Marker,
-    ) -> Result<BoundingBox, RenderingError> {
+    ) -> Result<BoundingBox, InternalRenderingError> {
         let mut cascaded = CascadedValues::new_from_node(node);
         cascaded.context_fill = Some(marker.context_fill.clone());
         cascaded.context_stroke = Some(marker.context_stroke.clone());
@@ -599,7 +606,7 @@ fn emit_marker_by_node(
     line_width: f64,
     clipping: bool,
     marker_type: MarkerType,
-) -> Result<BoundingBox, RenderingError> {
+) -> Result<BoundingBox, InternalRenderingError> {
     match acquired_nodes.acquire_ref(marker.node_ref.as_ref().unwrap()) {
         Ok(acquired) => {
             let node = acquired.get();
@@ -640,9 +647,9 @@ fn emit_marker<E>(
     marker_type: MarkerType,
     orient: Angle,
     emit_fn: &mut E,
-) -> Result<BoundingBox, RenderingError>
+) -> Result<BoundingBox, InternalRenderingError>
 where
-    E: FnMut(MarkerType, f64, f64, Angle) -> Result<BoundingBox, RenderingError>,
+    E: FnMut(MarkerType, f64, f64, Angle) -> Result<BoundingBox, InternalRenderingError>,
 {
     let (x, y) = match *segment {
         Segment::Degenerate { x, y } => (x, y),
@@ -662,7 +669,7 @@ pub fn render_markers_for_shape(
     draw_ctx: &mut DrawingCtx,
     acquired_nodes: &mut AcquiredNodes<'_>,
     clipping: bool,
-) -> Result<BoundingBox, RenderingError> {
+) -> Result<BoundingBox, InternalRenderingError> {
     if shape.stroke.width.approx_eq_cairo(0.0) {
         return Ok(draw_ctx.empty_bbox());
     }
@@ -708,9 +715,9 @@ fn emit_markers_for_path<E>(
     path: &Path,
     empty_bbox: BoundingBox,
     emit_fn: &mut E,
-) -> Result<BoundingBox, RenderingError>
+) -> Result<BoundingBox, InternalRenderingError>
 where
-    E: FnMut(MarkerType, f64, f64, Angle) -> Result<BoundingBox, RenderingError>,
+    E: FnMut(MarkerType, f64, f64, Angle) -> Result<BoundingBox, InternalRenderingError>,
 {
     enum SubpathState {
         NoSubpath,
@@ -1167,7 +1174,7 @@ mod marker_tests {
                   x: f64,
                   y: f64,
                   computed_angle: Angle|
-             -> Result<BoundingBox, RenderingError> {
+             -> Result<BoundingBox, InternalRenderingError> {
                 v.push((marker_type, x, y, computed_angle));
                 Ok(BoundingBox::new())
             }
@@ -1203,7 +1210,7 @@ mod marker_tests {
                   x: f64,
                   y: f64,
                   computed_angle: Angle|
-             -> Result<BoundingBox, RenderingError> {
+             -> Result<BoundingBox, InternalRenderingError> {
                 v.push((marker_type, x, y, computed_angle));
                 Ok(BoundingBox::new())
             }

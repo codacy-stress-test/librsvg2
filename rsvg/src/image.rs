@@ -14,6 +14,7 @@ use crate::length::*;
 use crate::node::{CascadedValues, Node, NodeBorrow};
 use crate::parsers::ParseValue;
 use crate::rect::Rect;
+use crate::rsvg_log;
 use crate::session::Session;
 use crate::xml::Attributes;
 
@@ -53,7 +54,7 @@ impl ElementTrait for Image {
         viewport: &Viewport,
         draw_ctx: &mut DrawingCtx,
         clipping: bool,
-    ) -> Result<BoundingBox, RenderingError> {
+    ) -> Result<BoundingBox, InternalRenderingError> {
         let surface = match self.href {
             Some(ref url) => match acquired_nodes.lookup_image(url) {
                 Ok(surf) => surf,

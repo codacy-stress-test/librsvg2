@@ -1,12 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use rsvg::{
-    surface_utils::{
-        iterators::Pixels,
-        shared_surface::{ExclusiveImageSurface, SharedImageSurface, SurfaceType},
-    },
-    IRect,
-};
+use rsvg::bench_only::{ExclusiveImageSurface, IRect, Pixels, SharedImageSurface, SurfaceType};
 
 const SURFACE_SIDE: i32 = 512;
 const BOUNDS: IRect = IRect {
@@ -35,7 +29,7 @@ fn bench_pixel_iterators(c: &mut Criterion) {
                 for x in bounds.x_range() {
                     let base = (y * stride + x * 4) as usize;
 
-                    r += data[base + 0] as usize;
+                    r += data[base] as usize;
                     g += data[base + 1] as usize;
                     b += data[base + 2] as usize;
                     a += data[base + 3] as usize;

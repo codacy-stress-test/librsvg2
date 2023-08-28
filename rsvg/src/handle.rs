@@ -6,14 +6,16 @@ use std::sync::Arc;
 
 use crate::accept_language::UserLanguage;
 use crate::bbox::BoundingBox;
+use crate::borrow_element_as;
 use crate::css::{Origin, Stylesheet};
 use crate::document::{AcquiredNodes, Document, NodeId};
 use crate::dpi::Dpi;
 use crate::drawing_ctx::{draw_tree, with_saved_cr, DrawingMode, Viewport};
-use crate::error::{DefsLookupErrorKind, LoadingError, RenderingError};
+use crate::error::{DefsLookupErrorKind, InternalRenderingError, LoadingError};
 use crate::length::*;
 use crate::node::{CascadedValues, Node, NodeBorrow};
 use crate::rect::Rect;
+use crate::rsvg_log;
 use crate::session::Session;
 use crate::structure::IntrinsicDimensions;
 use crate::url_resolver::{AllowedUrl, UrlResolver};
@@ -103,7 +105,7 @@ impl Handle {
     ///
     /// The `id` must be an URL fragment identifier, i.e. something
     /// like `#element_id`.
-    pub fn has_sub(&self, id: &str) -> Result<bool, RenderingError> {
+    pub fn has_sub(&self, id: &str) -> Result<bool, InternalRenderingError> {
         match self.lookup_node(id) {
             Ok(_) => Ok(true),
 
@@ -134,7 +136,7 @@ impl Handle {
         (width.to_user(&params), height.to_user(&params))
     }
 
-    fn get_node_or_root(&self, id: Option<&str>) -> Result<Node, RenderingError> {
+    fn get_node_or_root(&self, id: Option<&str>) -> Result<Node, InternalRenderingError> {
         if let Some(id) = id {
             Ok(self.lookup_node(id)?)
         } else {
@@ -149,7 +151,7 @@ impl Handle {
         user_language: &UserLanguage,
         dpi: Dpi,
         is_testing: bool,
-    ) -> Result<(Rect, Rect), RenderingError> {
+    ) -> Result<(Rect, Rect), InternalRenderingError> {
         let root = self.document.root();
 
         let target = cairo::ImageSurface::create(cairo::Format::Rgb24, 1, 1)?;
@@ -180,7 +182,7 @@ impl Handle {
         user_language: &UserLanguage,
         dpi: Dpi,
         is_testing: bool,
-    ) -> Result<(cairo::Rectangle, cairo::Rectangle), RenderingError> {
+    ) -> Result<(cairo::Rectangle, cairo::Rectangle), InternalRenderingError> {
         let viewport = Rect::from(*viewport);
         let node = self.get_node_or_root(id)?;
 
@@ -228,7 +230,7 @@ impl Handle {
         user_language: &UserLanguage,
         dpi: Dpi,
         is_testing: bool,
-    ) -> Result<(), RenderingError> {
+    ) -> Result<(), InternalRenderingError> {
         self.render_layer(cr, None, viewport, user_language, dpi, is_testing)
     }
 
@@ -240,7 +242,7 @@ impl Handle {
         user_language: &UserLanguage,
         dpi: Dpi,
         is_testing: bool,
-    ) -> Result<(), RenderingError> {
+    ) -> Result<(), InternalRenderingError> {
         cr.status()?;
 
         let node = self.get_node_or_root(id)?;
@@ -270,7 +272,7 @@ impl Handle {
         user_language: &UserLanguage,
         dpi: Dpi,
         is_testing: bool,
-    ) -> Result<BoundingBox, RenderingError> {
+    ) -> Result<BoundingBox, InternalRenderingError> {
         let target = cairo::ImageSurface::create(cairo::Format::Rgb24, 1, 1)?;
         let cr = cairo::Context::new(&target)?;
 
@@ -296,7 +298,7 @@ impl Handle {
         user_language: &UserLanguage,
         dpi: Dpi,
         is_testing: bool,
-    ) -> Result<(cairo::Rectangle, cairo::Rectangle), RenderingError> {
+    ) -> Result<(cairo::Rectangle, cairo::Rectangle), InternalRenderingError> {
         let node = self.get_node_or_root(id)?;
 
         let bbox = self.get_bbox_for_element(&node, user_language, dpi, is_testing)?;
@@ -321,7 +323,7 @@ impl Handle {
         user_language: &UserLanguage,
         dpi: Dpi,
         is_testing: bool,
-    ) -> Result<(), RenderingError> {
+    ) -> Result<(), InternalRenderingError> {
         cr.status()?;
 
         let node = self.get_node_or_root(id)?;

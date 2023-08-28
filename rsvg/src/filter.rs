@@ -1,6 +1,6 @@
 //! The `filter` element.
 
-use cssparser::{Parser, RGBA};
+use cssparser::{Color, Parser};
 use markup5ever::{expanded_name, local_name, namespace_url, ns};
 use std::slice::Iter;
 
@@ -15,8 +15,10 @@ use crate::length::*;
 use crate::node::{Node, NodeBorrow};
 use crate::parsers::{Parse, ParseValue};
 use crate::rect::Rect;
+use crate::rsvg_log;
 use crate::session::Session;
 use crate::xml::Attributes;
+use crate::{borrow_element_as, is_element_of_type};
 
 /// The `<filter>` node.
 pub struct Filter {
@@ -105,7 +107,7 @@ impl FilterValue {
         &self,
         acquired_nodes: &mut AcquiredNodes<'_>,
         user_space_params: &NormalizeParams,
-        current_color: RGBA,
+        current_color: Color,
         viewport: &Viewport,
         session: &Session,
         node_being_filtered_name: &str,

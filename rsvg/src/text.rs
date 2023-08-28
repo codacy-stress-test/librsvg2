@@ -22,6 +22,7 @@ use crate::properties::{
     TextAnchor, TextRendering, UnicodeBidi, WritingMode, XmlLang, XmlSpace,
 };
 use crate::rect::Rect;
+use crate::rsvg_log;
 use crate::session::Session;
 use crate::space::{xml_space_normalize, NormalizeDefault, XmlSpaceNormalize};
 use crate::transform::{Transform, ValidTransform};
@@ -769,7 +770,7 @@ impl ElementTrait for Text {
         viewport: &Viewport,
         draw_ctx: &mut DrawingCtx,
         clipping: bool,
-    ) -> Result<BoundingBox, RenderingError> {
+    ) -> Result<BoundingBox, InternalRenderingError> {
         let values = cascaded.get();
         let params = NormalizeParams::new(values, viewport);
 

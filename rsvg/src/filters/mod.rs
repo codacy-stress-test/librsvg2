@@ -9,13 +9,15 @@ use crate::bbox::BoundingBox;
 use crate::document::AcquiredNodes;
 use crate::drawing_ctx::DrawingCtx;
 use crate::element::{set_attribute, ElementTrait};
-use crate::error::{ParseError, RenderingError};
+use crate::error::{InternalRenderingError, ParseError};
 use crate::filter::UserSpaceFilter;
 use crate::length::*;
 use crate::node::Node;
 use crate::paint_server::UserSpacePaintSource;
+use crate::parse_identifiers;
 use crate::parsers::{CustomIdent, Parse, ParseValue};
 use crate::properties::ColorInterpolationFilters;
+use crate::rsvg_log;
 use crate::session::Session;
 use crate::surface_utils::{
     shared_surface::{SharedImageSurface, SurfaceType},
@@ -144,8 +146,9 @@ pub struct UserSpacePrimitive {
 }
 
 /// An enumeration of possible inputs for a filter primitive.
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Default, Clone, Eq, PartialEq, Hash)]
 pub enum Input {
+    #[default]
     Unspecified,
     SourceGraphic,
     SourceAlpha,
@@ -155,8 +158,6 @@ pub enum Input {
     StrokePaint,
     FilterOutput(CustomIdent),
 }
-
-enum_default!(Input, Input::Unspecified);
 
 impl Parse for Input {
     fn parse<'i>(parser: &mut Parser<'i, '_>) -> Result<Self, ParseError<'i>> {
@@ -262,7 +263,7 @@ pub fn render(
     draw_ctx: &mut DrawingCtx,
     transform: Transform,
     node_bbox: BoundingBox,
-) -> Result<SharedImageSurface, RenderingError> {
+) -> Result<SharedImageSurface, InternalRenderingError> {
     let session = draw_ctx.session().clone();
 
     FilterContext::new(
@@ -327,7 +328,7 @@ pub fn render(
     .or_else(|err| match err {
         FilterError::CairoError(status) => {
             // Exit early on Cairo errors
-            Err(RenderingError::from(status))
+            Err(InternalRenderingError::from(status))
         }
 
         _ => {

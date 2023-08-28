@@ -19,6 +19,7 @@ use crate::element::*;
 use crate::error::*;
 use crate::paint_server::PaintSource;
 use crate::properties::ComputedValues;
+use crate::rsvg_log;
 use crate::session::Session;
 use crate::text::Chars;
 use crate::xml::Attributes;
@@ -257,6 +258,7 @@ impl NodeBorrow for Node {
     }
 }
 
+#[doc(hidden)]
 #[macro_export]
 macro_rules! is_element_of_type {
     ($node:expr, $element_type:ident) => {
@@ -267,6 +269,7 @@ macro_rules! is_element_of_type {
     };
 }
 
+#[doc(hidden)]
 #[macro_export]
 macro_rules! borrow_element_as {
     ($node:expr, $element_type:ident) => {
@@ -310,7 +313,7 @@ pub trait NodeDraw {
         viewport: &Viewport,
         draw_ctx: &mut DrawingCtx,
         clipping: bool,
-    ) -> Result<BoundingBox, RenderingError>;
+    ) -> Result<BoundingBox, InternalRenderingError>;
 
     fn draw_children(
         &self,
@@ -319,7 +322,7 @@ pub trait NodeDraw {
         viewport: &Viewport,
         draw_ctx: &mut DrawingCtx,
         clipping: bool,
-    ) -> Result<BoundingBox, RenderingError>;
+    ) -> Result<BoundingBox, InternalRenderingError>;
 }
 
 impl NodeDraw for Node {
@@ -330,7 +333,7 @@ impl NodeDraw for Node {
         viewport: &Viewport,
         draw_ctx: &mut DrawingCtx,
         clipping: bool,
-    ) -> Result<BoundingBox, RenderingError> {
+    ) -> Result<BoundingBox, InternalRenderingError> {
         match *self.borrow() {
             NodeData::Element(ref e) => {
                 rsvg_log!(draw_ctx.session(), "({}", e);
@@ -343,7 +346,7 @@ impl NodeDraw for Node {
                     // "If a transform function causes the current transformation matrix of an
                     // object to be non-invertible, the object and its content do not get
                     // displayed."
-                    Err(RenderingError::InvalidTransform) => Ok(draw_ctx.empty_bbox()),
+                    Err(InternalRenderingError::InvalidTransform) => Ok(draw_ctx.empty_bbox()),
 
                     Err(e) => Err(e),
                 };
@@ -364,7 +367,7 @@ impl NodeDraw for Node {
         viewport: &Viewport,
         draw_ctx: &mut DrawingCtx,
         clipping: bool,
-    ) -> Result<BoundingBox, RenderingError> {
+    ) -> Result<BoundingBox, InternalRenderingError> {
         let mut bbox = draw_ctx.empty_bbox();
 
         for child in self.children().filter(|c| c.is_element()) {

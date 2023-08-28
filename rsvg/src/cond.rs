@@ -9,6 +9,7 @@ use language_tags::LanguageTag;
 
 use crate::accept_language::{LanguageTags, UserLanguage};
 use crate::error::*;
+use crate::rsvg_log;
 use crate::session::Session;
 
 // No extensions at the moment.
@@ -200,44 +201,20 @@ mod tests {
             SystemLanguage::Invalid
         ));
 
-        assert_eq!(
-            SystemLanguage::from_attribute("fr", &session).eval(&user_language),
-            false
-        );
+        assert!(!SystemLanguage::from_attribute("fr", &session).eval(&user_language));
 
-        assert_eq!(
-            SystemLanguage::from_attribute("en", &session).eval(&user_language),
-            false
-        );
+        assert!(!SystemLanguage::from_attribute("en", &session).eval(&user_language));
 
-        assert_eq!(
-            SystemLanguage::from_attribute("de", &session).eval(&user_language),
-            true
-        );
+        assert!(SystemLanguage::from_attribute("de", &session).eval(&user_language));
 
-        assert_eq!(
-            SystemLanguage::from_attribute("en-US", &session).eval(&user_language),
-            true
-        );
+        assert!(SystemLanguage::from_attribute("en-US", &session).eval(&user_language));
 
-        assert_eq!(
-            SystemLanguage::from_attribute("en-GB", &session).eval(&user_language),
-            false
-        );
+        assert!(!SystemLanguage::from_attribute("en-GB", &session).eval(&user_language));
 
-        assert_eq!(
-            SystemLanguage::from_attribute("DE", &session).eval(&user_language),
-            true
-        );
+        assert!(SystemLanguage::from_attribute("DE", &session).eval(&user_language));
 
-        assert_eq!(
-            SystemLanguage::from_attribute("de-LU", &session).eval(&user_language),
-            true
-        );
+        assert!(SystemLanguage::from_attribute("de-LU", &session).eval(&user_language));
 
-        assert_eq!(
-            SystemLanguage::from_attribute("fr, de", &session).eval(&user_language),
-            true
-        );
+        assert!(SystemLanguage::from_attribute("fr, de", &session).eval(&user_language));
     }
 }

@@ -16,11 +16,12 @@ use std::sync::Arc;
 use crate::accept_language::UserLanguage;
 use crate::aspect_ratio::AspectRatio;
 use crate::bbox::BoundingBox;
+use crate::color::color_to_rgba;
 use crate::coord_units::CoordUnits;
 use crate::document::{AcquiredNodes, NodeId};
 use crate::dpi::Dpi;
 use crate::element::{Element, ElementData};
-use crate::error::{AcquireError, ImplementationLimit, RenderingError};
+use crate::error::{AcquireError, ImplementationLimit, InternalRenderingError};
 use crate::filters::{self, FilterSpec};
 use crate::float_eq_cairo::ApproxEqCairo;
 use crate::gradient::{GradientVariant, SpreadMethod, UserSpaceGradient};
@@ -38,6 +39,7 @@ use crate::properties::{
     PaintTarget, ShapeRendering, StrokeLinecap, StrokeLinejoin, TextRendering,
 };
 use crate::rect::{rect_to_transform, IRect, Rect};
+use crate::rsvg_log;
 use crate::session::Session;
 use crate::surface_utils::shared_surface::{
     ExclusiveImageSurface, Interpolation, SharedImageSurface, SurfaceType,
@@ -45,6 +47,7 @@ use crate::surface_utils::shared_surface::{
 use crate::transform::{Transform, ValidTransform};
 use crate::unit_interval::UnitInterval;
 use crate::viewbox::ViewBox;
+use crate::{borrow_element_as, is_element_of_type};
 
 /// Opaque font options for a DrawingCtx.
 ///
@@ -86,7 +89,7 @@ impl<'a> PathHelper<'a> {
         }
     }
 
-    pub fn set(&mut self) -> Result<(), RenderingError> {
+    pub fn set(&mut self) -> Result<(), InternalRenderingError> {
         match self.has_path {
             Some(false) | None => {
                 self.has_path = Some(true);
@@ -204,7 +207,7 @@ pub fn draw_tree(
     measuring: bool,
     testing: bool,
     acquired_nodes: &mut AcquiredNodes<'_>,
-) -> Result<BoundingBox, RenderingError> {
+) -> Result<BoundingBox, InternalRenderingError> {
     let (drawsub_stack, node) = match mode {
         DrawingMode::LimitToStack { node, root } => (node.ancestors().collect(), root),
 
@@ -272,9 +275,9 @@ pub fn draw_tree(
     Ok(user_bbox)
 }
 
-pub fn with_saved_cr<O, F>(cr: &cairo::Context, f: F) -> Result<O, RenderingError>
+pub fn with_saved_cr<O, F>(cr: &cairo::Context, f: F) -> Result<O, InternalRenderingError>
 where
-    F: FnOnce() -> Result<O, RenderingError>,
+    F: FnOnce() -> Result<O, InternalRenderingError>,
 {
     cr.save()?;
     match f() {
@@ -364,7 +367,7 @@ impl DrawingCtx {
         &self,
         stacking_ctx: &StackingContext,
         clipping: bool,
-    ) -> Result<ValidTransform, RenderingError> {
+    ) -> Result<ValidTransform, InternalRenderingError> {
         if stacking_ctx.should_isolate() && !clipping {
             let affines = CompositingAffines::new(
                 *self.get_transform(),
@@ -409,7 +412,7 @@ impl DrawingCtx {
 
     pub fn create_surface_for_toplevel_viewport(
         &self,
-    ) -> Result<cairo::ImageSurface, RenderingError> {
+    ) -> Result<cairo::ImageSurface, InternalRenderingError> {
         let (w, h) = self.size_for_temporary_surface();
 
         Ok(cairo::ImageSurface::create(cairo::Format::ARgb32, w, h)?)
@@ -418,7 +421,7 @@ impl DrawingCtx {
     fn create_similar_surface_for_toplevel_viewport(
         &self,
         surface: &cairo::Surface,
-    ) -> Result<cairo::Surface, RenderingError> {
+    ) -> Result<cairo::Surface, InternalRenderingError> {
         let (w, h) = self.size_for_temporary_surface();
 
         Ok(cairo::Surface::create_similar(
@@ -484,7 +487,7 @@ impl DrawingCtx {
         acquired_nodes: &mut AcquiredNodes<'_>,
         viewport: &Viewport,
         bbox: &BoundingBox,
-    ) -> Result<(), RenderingError> {
+    ) -> Result<(), InternalRenderingError> {
         if clip_node.is_none() {
             return Ok(());
         }
@@ -529,7 +532,7 @@ impl DrawingCtx {
         transform: Transform,
         bbox: &BoundingBox,
         acquired_nodes: &mut AcquiredNodes<'_>,
-    ) -> Result<Option<cairo::ImageSurface>, RenderingError> {
+    ) -> Result<Option<cairo::ImageSurface>, InternalRenderingError> {
         if bbox.rect.is_none() {
             // The node being masked is empty / doesn't have a
             // bounding box, so there's nothing to mask!
@@ -646,8 +649,8 @@ impl DrawingCtx {
         draw_fn: &mut dyn FnMut(
             &mut AcquiredNodes<'_>,
             &mut DrawingCtx,
-        ) -> Result<BoundingBox, RenderingError>,
-    ) -> Result<BoundingBox, RenderingError> {
+        ) -> Result<BoundingBox, InternalRenderingError>,
+    ) -> Result<BoundingBox, InternalRenderingError> {
         let stacking_ctx_transform = ValidTransform::try_from(stacking_ctx.transform)?;
 
         let orig_transform = self.get_transform();
@@ -848,8 +851,8 @@ impl DrawingCtx {
     fn with_alpha(
         &mut self,
         opacity: UnitInterval,
-        draw_fn: &mut dyn FnMut(&mut DrawingCtx) -> Result<BoundingBox, RenderingError>,
-    ) -> Result<BoundingBox, RenderingError> {
+        draw_fn: &mut dyn FnMut(&mut DrawingCtx) -> Result<BoundingBox, InternalRenderingError>,
+    ) -> Result<BoundingBox, InternalRenderingError> {
         let res;
         let UnitInterval(o) = opacity;
         if o < 1.0 {
@@ -888,7 +891,7 @@ impl DrawingCtx {
         stroke_paint_source: Rc<UserSpacePaintSource>,
         fill_paint_source: Rc<UserSpacePaintSource>,
         node_bbox: BoundingBox,
-    ) -> Result<SharedImageSurface, RenderingError> {
+    ) -> Result<SharedImageSurface, InternalRenderingError> {
         let session = self.session();
 
         // We try to convert each item in the filter_list to a FilterSpec.
@@ -945,7 +948,7 @@ impl DrawingCtx {
         }
     }
 
-    fn set_gradient(&mut self, gradient: &UserSpaceGradient) -> Result<(), RenderingError> {
+    fn set_gradient(&mut self, gradient: &UserSpaceGradient) -> Result<(), InternalRenderingError> {
         let g = match gradient.variant {
             GradientVariant::Linear { x1, y1, x2, y2 } => {
                 cairo::Gradient::clone(&cairo::LinearGradient::new(x1, y1, x2, y2))
@@ -967,12 +970,14 @@ impl DrawingCtx {
         for stop in &gradient.stops {
             let UnitInterval(stop_offset) = stop.offset;
 
+            let rgba = color_to_rgba(&stop.color);
+
             g.add_color_stop_rgba(
                 stop_offset,
-                f64::from(stop.rgba.red_f32()),
-                f64::from(stop.rgba.green_f32()),
-                f64::from(stop.rgba.blue_f32()),
-                f64::from(stop.rgba.alpha_f32()),
+                f64::from(rgba.red.unwrap_or(0)) / 255.0,
+                f64::from(rgba.green.unwrap_or(0)) / 255.0,
+                f64::from(rgba.blue.unwrap_or(0)) / 255.0,
+                f64::from(rgba.alpha.unwrap_or(0.0)),
             );
         }
 
@@ -983,7 +988,7 @@ impl DrawingCtx {
         &mut self,
         pattern: &UserSpacePattern,
         acquired_nodes: &mut AcquiredNodes<'_>,
-    ) -> Result<bool, RenderingError> {
+    ) -> Result<bool, InternalRenderingError> {
         // Bail out early if the pattern has zero size, per the spec
         if approx_eq!(f64, pattern.width, 0.0) || approx_eq!(f64, pattern.height, 0.0) {
             return Ok(false);
@@ -1102,37 +1107,28 @@ impl DrawingCtx {
         Ok(true)
     }
 
-    fn set_color(&self, rgba: cssparser::RGBA) {
-        self.cr.clone().set_source_rgba(
-            f64::from(rgba.red_f32()),
-            f64::from(rgba.green_f32()),
-            f64::from(rgba.blue_f32()),
-            f64::from(rgba.alpha_f32()),
-        );
-    }
-
     fn set_paint_source(
         &mut self,
         paint_source: &UserSpacePaintSource,
         acquired_nodes: &mut AcquiredNodes<'_>,
-    ) -> Result<bool, RenderingError> {
+    ) -> Result<bool, InternalRenderingError> {
         match *paint_source {
             UserSpacePaintSource::Gradient(ref gradient, _c) => {
                 self.set_gradient(gradient)?;
                 Ok(true)
             }
-            UserSpacePaintSource::Pattern(ref pattern, c) => {
+            UserSpacePaintSource::Pattern(ref pattern, ref c) => {
                 if self.set_pattern(pattern, acquired_nodes)? {
                     Ok(true)
                 } else if let Some(c) = c {
-                    self.set_color(c);
+                    set_source_color_on_cairo(&self.cr, c);
                     Ok(true)
                 } else {
                     Ok(false)
                 }
             }
-            UserSpacePaintSource::SolidColor(c) => {
-                self.set_color(c);
+            UserSpacePaintSource::SolidColor(ref c) => {
+                set_source_color_on_cairo(&self.cr, c);
                 Ok(true)
             }
             UserSpacePaintSource::None => Ok(false),
@@ -1146,7 +1142,7 @@ impl DrawingCtx {
         height: i32,
         acquired_nodes: &mut AcquiredNodes<'_>,
         paint_source: &UserSpacePaintSource,
-    ) -> Result<SharedImageSurface, RenderingError> {
+    ) -> Result<SharedImageSurface, InternalRenderingError> {
         let mut surface = ExclusiveImageSurface::new(width, height, SurfaceType::SRgb)?;
 
         surface.draw(&mut |cr| {
@@ -1171,7 +1167,7 @@ impl DrawingCtx {
         cr: &cairo::Context,
         acquired_nodes: &mut AcquiredNodes<'_>,
         paint_source: &UserSpacePaintSource,
-    ) -> Result<(), RenderingError> {
+    ) -> Result<(), InternalRenderingError> {
         let had_paint_server = self.set_paint_source(paint_source, acquired_nodes)?;
         if had_paint_server {
             cr.stroke_preserve()?;
@@ -1185,7 +1181,7 @@ impl DrawingCtx {
         cr: &cairo::Context,
         acquired_nodes: &mut AcquiredNodes<'_>,
         paint_source: &UserSpacePaintSource,
-    ) -> Result<(), RenderingError> {
+    ) -> Result<(), InternalRenderingError> {
         let had_paint_server = self.set_paint_source(paint_source, acquired_nodes)?;
         if had_paint_server {
             cr.fill_preserve()?;
@@ -1194,7 +1190,10 @@ impl DrawingCtx {
         Ok(())
     }
 
-    pub fn compute_path_extents(&self, path: &Path) -> Result<Option<Rect>, RenderingError> {
+    pub fn compute_path_extents(
+        &self,
+        path: &Path,
+    ) -> Result<Option<Rect>, InternalRenderingError> {
         if path.is_empty() {
             return Ok(None);
         }
@@ -1214,7 +1213,7 @@ impl DrawingCtx {
         acquired_nodes: &mut AcquiredNodes<'_>,
         clipping: bool,
         viewport: &Viewport,
-    ) -> Result<BoundingBox, RenderingError> {
+    ) -> Result<BoundingBox, InternalRenderingError> {
         match &layer.kind {
             LayerKind::Shape(shape) => self.draw_shape(
                 shape,
@@ -1247,7 +1246,7 @@ impl DrawingCtx {
         acquired_nodes: &mut AcquiredNodes<'_>,
         clipping: bool,
         viewport: &Viewport,
-    ) -> Result<BoundingBox, RenderingError> {
+    ) -> Result<BoundingBox, InternalRenderingError> {
         if shape.extents.is_none() {
             return Ok(self.empty_bbox());
         }
@@ -1367,7 +1366,7 @@ impl DrawingCtx {
         acquired_nodes: &mut AcquiredNodes<'_>,
         clipping: bool,
         viewport: &Viewport,
-    ) -> Result<BoundingBox, RenderingError> {
+    ) -> Result<BoundingBox, InternalRenderingError> {
         let image_width = image.surface.width();
         let image_height = image.surface.height();
         if clipping || image.rect.is_empty() || image_width == 0 || image_height == 0 {
@@ -1428,7 +1427,7 @@ impl DrawingCtx {
         span: &TextSpan,
         acquired_nodes: &mut AcquiredNodes<'_>,
         clipping: bool,
-    ) -> Result<BoundingBox, RenderingError> {
+    ) -> Result<BoundingBox, InternalRenderingError> {
         let path = pango_layout_to_path(span.x, span.y, &span.layout, span.gravity)?;
         if path.is_empty() {
             // Empty strings, or only-whitespace text, get turned into empty paths.
@@ -1527,7 +1526,7 @@ impl DrawingCtx {
         acquired_nodes: &mut AcquiredNodes<'_>,
         clipping: bool,
         viewport: &Viewport,
-    ) -> Result<BoundingBox, RenderingError> {
+    ) -> Result<BoundingBox, InternalRenderingError> {
         self.with_discrete_layer(
             stacking_ctx,
             acquired_nodes,
@@ -1550,7 +1549,7 @@ impl DrawingCtx {
         &self,
         width: i32,
         height: i32,
-    ) -> Result<SharedImageSurface, RenderingError> {
+    ) -> Result<SharedImageSurface, InternalRenderingError> {
         // TODO: as far as I can tell this should not render elements past the last (topmost) one
         // with enable-background: new (because technically we shouldn't have been caching them).
         // Right now there are no enable-background checks whatsoever.
@@ -1599,7 +1598,7 @@ impl DrawingCtx {
         affine: Transform,
         width: i32,
         height: i32,
-    ) -> Result<SharedImageSurface, RenderingError> {
+    ) -> Result<SharedImageSurface, InternalRenderingError> {
         let surface = cairo::ImageSurface::create(cairo::Format::ARgb32, width, height)?;
 
         let save_cr = self.cr.clone();
@@ -1630,7 +1629,7 @@ impl DrawingCtx {
         cascaded: &CascadedValues<'_>,
         viewport: &Viewport,
         clipping: bool,
-    ) -> Result<BoundingBox, RenderingError> {
+    ) -> Result<BoundingBox, InternalRenderingError> {
         let stack_top = self.drawsub_stack.pop();
 
         let draw = if let Some(ref top) = stack_top {
@@ -1663,7 +1662,7 @@ impl DrawingCtx {
         viewport: &Viewport,
         fill_paint: Arc<PaintSource>,
         stroke_paint: Arc<PaintSource>,
-    ) -> Result<BoundingBox, RenderingError> {
+    ) -> Result<BoundingBox, InternalRenderingError> {
         // <use> is an element that is used directly, unlike
         // <pattern>, which is used through a fill="url(#...)"
         // reference.  However, <use> will always reference another
@@ -1691,7 +1690,7 @@ impl DrawingCtx {
             }
 
             Err(AcquireError::MaxReferencesExceeded) => {
-                return Err(RenderingError::LimitExceeded(
+                return Err(InternalRenderingError::LimitExceeded(
                     ImplementationLimit::TooManyReferencedElements,
                 ));
             }
@@ -1913,6 +1912,17 @@ pub fn create_pango_context(font_options: &FontOptions, transform: &Transform) -
     context
 }
 
+pub fn set_source_color_on_cairo(cr: &cairo::Context, color: &cssparser::Color) {
+    let rgba = color_to_rgba(color);
+
+    cr.set_source_rgba(
+        f64::from(rgba.red.unwrap_or(0)) / 255.0,
+        f64::from(rgba.green.unwrap_or(0)) / 255.0,
+        f64::from(rgba.blue.unwrap_or(0)) / 255.0,
+        f64::from(rgba.alpha.unwrap_or(0.0)),
+    );
+}
+
 /// Converts a Pango layout to a Cairo path on the specified cr starting at (x, y).
 /// Does not clear the current path first.
 fn pango_layout_to_cairo(
@@ -1947,7 +1957,7 @@ pub fn pango_layout_to_path(
     y: f64,
     layout: &pango::Layout,
     gravity: pango::Gravity,
-) -> Result<Path, RenderingError> {
+) -> Result<Path, InternalRenderingError> {
     let surface = cairo::RecordingSurface::create(cairo::Content::ColorAlpha, None)?;
     let cr = cairo::Context::new(&surface)?;
 
@@ -2040,7 +2050,7 @@ fn compute_stroke_and_fill_extents(
     stroke: &Stroke,
     stroke_paint_source: &UserSpacePaintSource,
     initial_viewport: &Viewport,
-) -> Result<PathExtents, RenderingError> {
+) -> Result<PathExtents, InternalRenderingError> {
     // Dropping the precision of cairo's bezier subdivision, yielding 2x
     // _rendering_ time speedups, are these rather expensive operations
     // really needed here? */
@@ -2109,7 +2119,7 @@ fn compute_stroke_and_fill_box(
     stroke: &Stroke,
     stroke_paint_source: &UserSpacePaintSource,
     initial_viewport: &Viewport,
-) -> Result<BoundingBox, RenderingError> {
+) -> Result<BoundingBox, InternalRenderingError> {
     let extents =
         compute_stroke_and_fill_extents(cr, stroke, stroke_paint_source, initial_viewport)?;
 
@@ -2293,7 +2303,7 @@ impl Path {
         &self,
         cr: &cairo::Context,
         is_square_linecap: bool,
-    ) -> Result<(), RenderingError> {
+    ) -> Result<(), InternalRenderingError> {
         assert!(!self.is_empty());
 
         for subpath in self.iter_subpath() {

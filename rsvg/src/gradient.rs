@@ -1,10 +1,11 @@
 //! Gradient paint servers; the `linearGradient` and `radialGradient` elements.
 
-use cssparser::Parser;
+use cssparser::{Color, Parser};
 use markup5ever::{
     expanded_name, local_name, namespace_url, ns, ExpandedName, LocalName, Namespace,
 };
 
+use crate::coord_units;
 use crate::coord_units::CoordUnits;
 use crate::document::{AcquiredNodes, NodeId, NodeStack};
 use crate::drawing_ctx::Viewport;
@@ -14,6 +15,7 @@ use crate::href::{is_href, set_href};
 use crate::length::*;
 use crate::node::{CascadedValues, Node, NodeBorrow};
 use crate::paint_server::resolve_color;
+use crate::parse_identifiers;
 use crate::parsers::{Parse, ParseValue};
 use crate::rect::{rect_to_transform, Rect};
 use crate::session::Session;
@@ -28,21 +30,20 @@ pub struct ColorStop {
     pub offset: UnitInterval,
 
     /// `<stop stop-color="..." stop-opacity="..."/>`
-    pub rgba: cssparser::RGBA,
+    pub color: Color,
 }
 
 // gradientUnits attribute; its default is objectBoundingBox
 coord_units!(GradientUnits, CoordUnits::ObjectBoundingBox);
 
 /// spreadMethod attribute for gradients
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Default, Copy, Clone, PartialEq)]
 pub enum SpreadMethod {
+    #[default]
     Pad,
     Reflect,
     Repeat,
 }
-
-enum_default!(SpreadMethod, SpreadMethod::Pad);
 
 impl Parse for SpreadMethod {
     fn parse<'i>(parser: &mut Parser<'i, '_>) -> Result<SpreadMethod, ParseError<'i>> {
@@ -379,7 +380,7 @@ impl UnresolvedGradient {
     }
 
     /// Helper for add_color_stops_from_node()
-    fn add_color_stop(&mut self, offset: UnitInterval, rgba: cssparser::RGBA) {
+    fn add_color_stop(&mut self, offset: UnitInterval, color: Color) {
         if self.stops.is_none() {
             self.stops = Some(Vec::<ColorStop>::new());
         }
@@ -397,7 +398,7 @@ impl UnresolvedGradient {
                 last_offset
             };
 
-            stops.push(ColorStop { offset, rgba });
+            stops.push(ColorStop { offset, color });
         } else {
             unreachable!();
         }
@@ -421,10 +422,10 @@ impl UnresolvedGradient {
 
                 let composed_opacity = UnitInterval(stop_opacity * o);
 
-                let rgba =
-                    resolve_color(&values.stop_color().0, composed_opacity, values.color().0);
+                let stop_color =
+                    resolve_color(&values.stop_color().0, composed_opacity, &values.color().0);
 
-                self.add_color_stop(stop.offset, rgba);
+                self.add_color_stop(stop.offset, stop_color);
             }
         }
     }
@@ -702,8 +703,11 @@ impl ResolvedGradient {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::node::{Node, NodeData};
+
     use markup5ever::{namespace_url, ns, QualName};
+
+    use crate::borrow_element_as;
+    use crate::node::{Node, NodeData};
 
     #[test]
     fn parses_spread_method() {

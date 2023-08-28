@@ -12,12 +12,14 @@ use crate::drawing_ctx::{DrawingCtx, Viewport};
 use crate::element::{set_attribute, ElementTrait};
 use crate::error::*;
 use crate::iri::Iri;
+use crate::is_element_of_type;
 use crate::layout::{Layer, LayerKind, Marker, Shape, StackingContext, Stroke};
 use crate::length::*;
 use crate::node::{CascadedValues, Node, NodeBorrow};
 use crate::parsers::{optional_comma, Parse, ParseValue};
 use crate::path_builder::{LargeArc, Path as SvgPath, PathBuilder, Sweep};
 use crate::properties::ComputedValues;
+use crate::rsvg_log;
 use crate::session::Session;
 use crate::xml::Attributes;
 
@@ -50,7 +52,7 @@ fn draw_basic_shape(
     viewport: &Viewport,
     draw_ctx: &mut DrawingCtx,
     clipping: bool,
-) -> Result<BoundingBox, RenderingError> {
+) -> Result<BoundingBox, InternalRenderingError> {
     let values = cascaded.get();
     let params = NormalizeParams::new(values, viewport);
     let shape_def = basic_shape.make_shape(&params, values);
@@ -167,7 +169,7 @@ macro_rules! impl_draw {
             viewport: &Viewport,
             draw_ctx: &mut DrawingCtx,
             clipping: bool,
-        ) -> Result<BoundingBox, RenderingError> {
+        ) -> Result<BoundingBox, InternalRenderingError> {
             draw_basic_shape(
                 self,
                 node,

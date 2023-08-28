@@ -1,7 +1,7 @@
 [package]
 name = "librsvg"
 documentation = "https://gnome.pages.gitlab.gnome.org/librsvg/doc/rsvg/index.html"
-version = "2.57.0-beta.2"
+version = "2.57.0-beta.3"
 authors.workspace = true
 description.workspace = true
 license.workspace = true
@@ -10,6 +10,9 @@ repository.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 exclude = ["tests/fixtures", "tests/resources" ]
+
+[package.metadata.docs.rs]
+rustc-args = ["--cfg", "docsrs"]
 
 [package.metadata.system-deps]
 cairo = "1.17"
@@ -44,10 +47,9 @@ name = "rsvg"
 [dependencies]
 # Keep these in sync with respect to the cairo-rs version:
 #   src/lib.rs - toplevel example in the docs
-byteorder = "1.4"
 cairo-rs = { version = "0.18", features=["v1_16", "png", "pdf", "ps", "svg"] }
 cast = "0.3.0"
-cssparser = "0.29.0"
+cssparser = "~0.31"
 data-url = "0.3.0"
 encoding_rs = "0.8.32"
 float-cmp = "0.9.0"
@@ -68,7 +70,7 @@ rayon = "1"
 rctree = "0.5.0"
 regex = "1.7.1"
 rgb = { version="0.8", features=["argb"] }
-selectors = "0.24.0"
+selectors = "0.25.0"
 string_cache = "0.8.0"
 tinyvec = { version = "1.2.0", features = ["alloc", "rustc_1_55"] }
 url = "2"

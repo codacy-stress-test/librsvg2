@@ -20,7 +20,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! librsvg = "2.57.0"
+//! librsvg = "2.58.0-beta.0"
 //! cairo-rs = "0.18.2"
 //! gio = "0.18"   # only if you need streams
 //! ```
@@ -227,6 +227,7 @@ pub mod c_api_only {
     pub use crate::rsvg_log;
     pub use crate::session::Session;
     pub use crate::surface_utils::shared_surface::{SharedImageSurface, SurfaceType};
+    pub use crate::surface_utils::{Pixel, PixelOps, ToPixel};
 }
 
 #[doc(hidden)]

@@ -200,7 +200,7 @@ else
 endif
 
 librsvg_lib = shared_library(
-  'rsvg',
+  rsvg_ver,
   rsvg_dummy,
   link_whole: librsvg_c_lib,
   link_args: link_args,
@@ -224,8 +224,10 @@ pkg = import('pkgconfig')
 
 librsvg_c_pc = pkg.generate(
   name : 'librsvg',
+  filebase: librsvg_pc,
   description : 'library that renders svg files',
   libraries : librsvg_lib,
+  subdirs: librsvg_pc,
 )
 
 if build_gir.allowed()
@@ -293,7 +295,7 @@ if build_gir.allowed()
     includes: gir_includes,
     env: env,
     export_packages: librsvg_pc,
-    header: ['include/librsvg/rsvg.h'],
+    header: ['librsvg/rsvg.h'],
     install: true,
     sources: includes,
     extra_args: gir_args,
@@ -335,6 +337,7 @@ if build_tests.allowed()
       '--command=test',
       '--current-source-dir', meson.current_source_dir(),
     ],
+    env: extra_env,
     depends: librsvg_lib
   )
 endif

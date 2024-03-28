@@ -46,7 +46,15 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--toolchain-version", help="Rust Toolchain Version if needed"
+)
+
+parser.add_argument(
     "--target", help="Target triplet"
+)
+
+parser.add_argument(
+    "--build-triplet", help="Build toolchain triplet (for cross builds using specific toolchain version)"
 )
 
 parser.add_argument(
@@ -69,11 +77,14 @@ parser.add_argument("--libdir", required=True, help="Value of get_option('libdir
 g = parser.add_argument_group("Outputs")
 group = parser.add_mutually_exclusive_group(required=False)
 group.add_argument(
-    "--extension", help="filename extension for the static library (a, lib)",
+    "--extension", help="filename extension for the library (so, a, dll, lib, dylib)",
 )
 group.add_argument("--bin", help="Name of binary to build")
 
 args = parser.parse_args()
+
+if args.toolchain_version is not None and args.target is None and args.build_triplet is None:
+    raise ValueError('--target and/or --build-triplet argument required if --toolchain-version is specified')
 
 if args.command == 'test':
     if args.extension or args.bin:
@@ -102,20 +113,32 @@ cargo_prefixes = [
     (Path(args.prefix) / args.libdir).as_posix(),
 ]
 
+cargo_cmd = [Path(args.cargo).as_posix()]
+
+if args.toolchain_version is not None:
+    if args.build_triplet is not None:
+        cargo_cmd.extend(["+%s-%s" % (args.toolchain_version, args.build_triplet)])
+    else:
+        cargo_cmd.extend(["+%s-%s" % (args.toolchain_version, args.target)])
+
 if args.command == "cbuild":
-    cargo_cmd = [Path(args.cargo).as_posix(), "cbuild", "--locked"]
+    cargo_cmd.extend(["cbuild", "--locked"])
+    library_type = "staticlib" if args.extension in ("a", "lib") else "cdylib"
     cargo_cmd.extend(cargo_prefixes)
-    cargo_cmd.extend(["--library-type", "staticlib"])
+    cargo_cmd.extend(["--library-type", library_type])
 elif args.command == "test":
-    cargo_cmd = [
-        Path(args.cargo).as_posix(),
-        "test",
-        "--locked",
-        "--no-fail-fast",
-        "--color=always",
-    ]
+    cargo_cmd.extend(["test", "--locked", "--no-fail-fast", "--color=always"])
+    if 'librsvg' in args.packages:
+        cargo_cmd.extend([
+            "--features",
+            # These are required for librsvg itself
+            # If doing an unqualified cargo build, they'll be called up
+            # by rsvg-convert
+            # https://github.com/rust-lang/cargo/issues/2911
+            "capi,test-utils",
+        ])
 else:
-    cargo_cmd = [Path(args.cargo).as_posix(), "build", "--locked"]
+    cargo_cmd.extend(["build", "--locked"])
     if args.bin:
         cargo_cmd.extend(["--bin", args.bin])
 

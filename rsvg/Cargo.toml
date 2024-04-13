@@ -1,7 +1,7 @@
 [package]
 name = "librsvg"
 documentation = "https://gnome.pages.gitlab.gnome.org/librsvg/doc/rsvg/index.html"
-version = "2.58.0-beta.1"
+version = "2.59.0-beta.0"
 authors.workspace = true
 description.workspace = true
 license.workspace = true
@@ -38,6 +38,7 @@ fontconfig = { version = "1.7" }
 pangoft2 = { version = "1.50" }
 
 [features]
+avif = ["image/avif-decoder"]
 capi = []
 test-utils = ["yeslogic-fontconfig-sys"]
 

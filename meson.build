@@ -1,6 +1,6 @@
 project('librsvg',
         'c',
-        version: '2.57.91',
+        version: '2.58.90', # Keep this in sync with Cargo.toml, doc/librsvg.toml, rsvg/Cargo.toml
         meson_version: '>= 1.2.0',
         default_options: [
           'pkgconfig.relocatable=true',
@@ -19,7 +19,10 @@ host_system = host_machine.system()
 cc = meson.get_compiler('c')
 
 # MSRV - Minimum Supported Rust Version
-# If you change this, please update compiling.rst
+# If you change this, please update these:
+#   - the "rust-version" value in Cargo.toml
+#   - the "_manual_setup" section of devel-docs/devel_environment.rst
+#   - the "RUST_MINIMUM" variable in ci/container_builds.yml
 msrv = '1.70.0'
 cargo = find_program('cargo', version:'>= @0@'.format(msrv), native: true)
 cargo_wrapper = find_program('meson/cargo_wrapper.py', native: true)
@@ -33,15 +36,17 @@ python = py.find_installation()
 
 # Required versions for dependencies - Please update compiling.rst with version numbers if these change
 cairo_required         = '>= 1.17.0'
+dav1d_required         = '>= 1.3.0'
 ft2_cmake_required     = '>= 2.8.0'   # Actual FreeType version required
 freetype2_required     = '>= 20.0.14' # Corresponds to ft2_cmake_required
-gdk_pixbuf_required    = '>= 2.20'
 gio_required           = '>= 2.24.0'
 glib_required          = '>= 2.50.0'
 harfbuzz_required      = '>= 2.0.0'
 libxml_required        = '>= 2.9.0'
 pango_required         = '>= 1.50.0'
 
+# Optional dependencies
+gdk_pixbuf_required    = '>= 2.20'
 gidocgen_required      = '>= 2021.1'
 introspection_required = '>= 1.39.0'
 vapigen_required       = '>= 0.17.1.26'
@@ -56,6 +61,10 @@ cairogobj_dep  = dependency('cairo-gobject',
 cairo_png_dep  = dependency('cairo-png',
                             version: cairo_required,
                             fallback: ['cairo']) # FIXME: cairo has no _dep for this one
+dav1d_dep      = dependency('dav1d',
+                            version: dav1d_required,
+                            method: 'pkg-config',
+                            required: get_option('avif'))
 freetype2_dep  = dependency('freetype2',
                             version: freetype2_required,
                             method: 'pkg-config',
@@ -72,6 +81,7 @@ if not freetype2_dep.found()
 endif
 pixbuf_dep     = dependency('gdk-pixbuf-2.0',
                             version: gdk_pixbuf_required,
+                            required: get_option('pixbuf'),
                             fallback: ['gdk-pixbuf', 'gdkpixbuf_dep'],
                             default_options: ['png=enabled', 'jpeg=enabled', 'builtin_loaders=png,jpeg', 'man=false'])
 gio_dep        = dependency('gio-2.0',
@@ -137,11 +147,11 @@ endif
 build_gir = get_option('introspection').require(not meson.is_cross_build() and gi_dep.found())
 build_vala = get_option('vala').require(not meson.is_cross_build() and vapigen_dep.found())
 
-build_gdk_pixbuf = get_option('pixbuf-loader').require(pixbuf_dep.found())
+build_pixbuf_loader = get_option('pixbuf-loader').require(pixbuf_dep.found())
 
 build_docs = get_option('docs')
 
-build_tests = get_option('tests').require(pixbuf_dep.found(), error_message: 'Tests require gdk-pixbuf to be available')
+build_tests = get_option('tests')
 
 gnome = import('gnome')
 
@@ -158,6 +168,7 @@ library_dependencies_sole = [
   cairo_dep,
   cairogobj_dep,
   cairo_png_dep,
+  dav1d_dep,
   freetype2_dep.type_name() != 'cmake' ? freetype2_dep : empty_pc_dep,
   pixbuf_dep,
   gio_dep,
@@ -423,6 +434,22 @@ if toolchain_arg != []
   cargo_wrapper_args += toolchain_arg
 endif
 
+# avif support with dav1d
+
+if dav1d_dep.found()
+  avif_feature_args = ['--avif']
+else
+  avif_feature_args = []
+endif
+
+# gdk-pixbuf support
+
+if pixbuf_dep.found()
+  pixbuf_feature_args = ['--pixbuf']
+else
+  pixbuf_feature_args = []
+endif
+
 subdir('include')
 subdir('librsvg-c')
 subdir('rsvg')
@@ -430,7 +457,7 @@ if build_tests.allowed()
   subdir('librsvg-c/tests-c')
 endif
 subdir('rsvg_convert')
-if build_gdk_pixbuf.allowed()
+if build_pixbuf_loader.allowed()
   subdir('gdk-pixbuf-loader')
 endif
 if build_docs.allowed()

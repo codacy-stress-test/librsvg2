@@ -90,7 +90,8 @@ What's all that magic?  Let's dissect the podman command line:
   your current source tree without first copying it into the
   container; it will be available in ``/srv/project``.
 
-Finally, don't forget to ``source ci/env.sh`` once you are inside ``podman run``.
+Finally, don't forget to ``source ci/env.sh`` and ``source
+ci/setup-dependencies-env.sh`` once you are inside ``podman run``.
 
 You can now skip to :ref:`build`.
 
@@ -107,20 +108,28 @@ minimum version is listed here; you may use a newer version instead.
 * a C compiler and `make` tool; we recommend GNU `make`.
 * rust 1.70.0 or later
 * cargo
-* autoconf, automake, libtool, itstool
+* cargo-cbuild
+* meson
 * vala (optional)
 
 **Mandatory dependencies:**
 
 * Cairo 1.17.0 with PNG support
 * Freetype2 2.8.0
-* Gdk-pixbuf 2.20.0
 * GIO 2.24.0
+* Libxml2 2.9.0
+* Pango 1.46.0
+
+**Optional dependencies:**
+
+* GDK-Pixbuf 2.20.0
 * GObject-Introspection 0.10.8
 * gi-docgen
 * python3-docutils
-* Libxml2 2.9.0
-* Pango 1.46.0
+
+**Optional dependencies:**
+
+* dav1d 1.3.0 (to support the AVIF image format)
 
 The following sections describe how to install these dependencies on
 several systems.
@@ -135,8 +144,8 @@ As of 2018/Feb/22, librsvg cannot be built in `debian stable` and
 
 .. code-block:: sh
 
-   apt-get install -y gcc make rustc cargo \
-   automake autoconf libtool gi-docgen python3-docutils git \
+   apt-get install -y gcc make rustc cargo cargo-c \
+   meson gi-docgen python3-docutils git \
    libgdk-pixbuf2.0-dev libgirepository1.0-dev \
    libxml2-dev libcairo2-dev libpango1.0-dev
 
@@ -153,8 +162,8 @@ Fedora based systems
 
 .. code-block:: sh
 
-   dnf install -y gcc rust rust-std-static cargo make \
-   automake autoconf libtool gi-docgen python3-docutils git redhat-rpm-config \
+   dnf install -y gcc rust rust-std-static cargo cargo-c make \
+   meson gi-docgen python3-docutils git redhat-rpm-config \
    gdk-pixbuf2-devel gobject-introspection-devel \
    libxml2-devel cairo-devel cairo-gobject-devel pango-devel
 
@@ -163,8 +172,8 @@ openSUSE based systems
 
 .. code-block:: sh
 
-   zypper install -y gcc rust rust-std cargo make \
-   automake autoconf libtool python3-gi-docgen python38-docutils git \
+   zypper install -y gcc rust rust-std cargo cargo-c make \
+   meson python3-gi-docgen python38-docutils git \
    gdk-pixbuf-devel gobject-introspection-devel \
    libxml2-devel cairo-devel pango-devel
 
@@ -176,7 +185,7 @@ package manager.
 
 .. code-block:: sh
 
-   brew install automake gi-docgen pkgconfig libtool gobject-introspection gdk-pixbuf pango
+   brew install meson gi-docgen pkgconfig gobject-introspection gdk-pixbuf pango
 
 .. _build:
 
@@ -198,7 +207,7 @@ To casually test rendering, for example, for a feature you are
 developing, you can run `target/debug/rsvg-convert -o output.png
 my_test_file.svg`.
 
-If you do a release build with `carto build --release`, which includes
+If you do a release build with `cargo build --release --workspace`, which includes
 optimizations, the binary will be in `target/release/rsvg-convert`.
 This version is *much* faster than the debug version.
 
@@ -207,10 +216,9 @@ This version is *much* faster than the debug version.
 .. code-block:: sh
 
    mkdir -p _build
-   cd _build
-   ../autogen.sh --enable-gtk-doc --enable-vala
-   make
-   make check
+   meson setup _build -Ddocs=enabled -Dintrospection=enabled -Dvala=enabled
+   meson compile -C_ build
+   meson test -C _build
 
 You should only have to do that if you need to run the full test
 suite, for the C API tests and the tests for limiting memory

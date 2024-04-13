@@ -1,12 +1,21 @@
+# See devel-docs/compiling.rst for details on these options.
+
 option('introspection',
        type: 'feature',
        value: 'auto',
        yield: true,
        description: 'Build introspection data (requires gobject-introspection)')
 
+option('pixbuf',
+       type: 'feature',
+       value: 'auto',
+       yield: true,
+       description: 'Build with GDK-Pixbuf'
+       )
+
 option('pixbuf-loader',
        type: 'feature',
-       value: 'enabled',
+       value: 'auto',
        yield: true,
        description: 'Build the GDK-Pixbuf SVG loader (requires gdk-pixbuf-query-loaders)'
        )
@@ -27,12 +36,17 @@ option('tests',
        type: 'feature',
        value: 'auto',
        yield: true,
-       description: 'Enable the librsvg-c tests')
+       description: 'Enable the test suite (requires gdk-pixbuf)')
 
 option('triplet',
        type: 'string',
        value: '',
        description : 'Rust target triplet (if needed)')
+
+option('avif',
+       type: 'feature',
+       value: 'auto',
+       description : 'Support embedded AVIF via libdav1d')
 
 option('rustc-version',
        type: 'string',

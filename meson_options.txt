@@ -33,10 +33,10 @@ option('vala',
        description: 'Build Vala bindings (requires the vala compiler)')
 
 option('tests',
-       type: 'feature',
-       value: 'auto',
+       type: 'boolean',
+       value: true,
        yield: true,
-       description: 'Enable the test suite (requires gdk-pixbuf)')
+       description: 'Build the test suite')
 
 option('triplet',
        type: 'string',

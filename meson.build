@@ -1,6 +1,6 @@
 project('librsvg',
         'c',
-        version: '2.58.90', # Keep this in sync with Cargo.toml, doc/librsvg.toml, rsvg/Cargo.toml
+        version: '2.58.91', # Keep this in sync with Cargo.toml, doc/librsvg.toml, rsvg/Cargo.toml
         meson_version: '>= 1.2.0',
         default_options: [
           'pkgconfig.relocatable=true',
@@ -34,8 +34,8 @@ py = import('python')
 
 python = py.find_installation()
 
-# Required versions for dependencies - Please update compiling.rst with version numbers if these change
-cairo_required         = '>= 1.17.0'
+# Required versions for dependencies - Please update devel_environment.rst with version numbers if these change
+cairo_required         = '>= 1.18.0'
 dav1d_required         = '>= 1.3.0'
 ft2_cmake_required     = '>= 2.8.0'   # Actual FreeType version required
 freetype2_required     = '>= 20.0.14' # Corresponds to ft2_cmake_required
@@ -144,7 +144,11 @@ if libxml_dep.type_name() == 'cmake'
   extra_env.set('SYSTEM_DEPS_LIBXML2_LIB', fs.stem(libxml_lib))
 endif
 
-build_gir = get_option('introspection').require(not meson.is_cross_build() and gi_dep.found())
+if host_system == 'windows'
+  build_gir = get_option('introspection').require(get_option('default_library') != 'static' and not meson.is_cross_build() and gi_dep.found())
+else
+  build_gir = get_option('introspection').require(not meson.is_cross_build() and gi_dep.found())
+endif
 build_vala = get_option('vala').require(not meson.is_cross_build() and vapigen_dep.found())
 
 build_pixbuf_loader = get_option('pixbuf-loader').require(pixbuf_dep.found())
@@ -239,8 +243,12 @@ if host_system == 'windows'
   rustc_toolchain_cpu = host_cpu_family == 'x86' ? 'i686' : host_cpu_family
   if is_msvc_style
     rustc_toolchain_cc = 'msvc'
+  elif cc.get_id() == 'clang'
+    # https://github.com/msys2/MINGW-packages/issues/13388
+    is_msys2 = cc.get_define('__MINGW32__') == '1' and host_machine.cpu_family() != 'aarch64' and host_machine.system() in ['windows', 'cygwin']
+    rustc_toolchain_cc = is_msys2 ? 'gnu' : 'gnullvm'
   else
-    rustc_toolchain_cc = cc.get_id() == 'clang' ? 'gnullvm' : 'gnu'
+    rustc_toolchain_cc = 'gnu'
   endif
   rustc_target = '@0@-pc-windows-@1@'.format(rustc_toolchain_cpu, rustc_toolchain_cc)
 

@@ -23,7 +23,7 @@ cc = meson.get_compiler('c')
 #   - the "rust-version" value in Cargo.toml
 #   - the "_manual_setup" section of devel-docs/devel_environment.rst
 #   - the "RUST_MINIMUM" variable in ci/container_builds.yml
-msrv = '1.78.0'
+msrv = '1.77.2'
 cargo = find_program('cargo', version:'>= @0@'.format(msrv))
 cargo_wrapper = find_program('meson/cargo_wrapper.py', native: true)
 cargo_c = find_program('cargo-cbuild', version:'>= 0.9.19')
@@ -33,14 +33,16 @@ makedef = find_program('meson/makedef.py', native: true)
 if host_system in ['darwin', 'ios']
   # Validate unconditional presence of getentropy and CCRandomGenerateBytes.
   # https://github.com/rust-lang/rust/pull/116319
-  cc.compiles('''#include <Availability.h>
+  ret = cc.compiles('''#include <Availability.h>
 #include <TargetConditionals.h>
 #if !((TARGET_OS_OSX && __MAC_OS_X_VERSION_MIN_REQUIRED >= 101200L) || (TARGET_OS_IOS && __IPHONE_OS_VERSION_MIN_REQUIRED >= 100000L))
 # error "https://gitlab.gnome.org/GNOME/librsvg/-/issues/1097"
 #endif''',
     name: 'Targets at least macOS 10.12 or iOS 10',
-    required: rustc.version().version_compare('>= 1.75.0')
   )
+  if rustc.version().version_compare('>= 1.75.0') and not ret
+    error('When using rustc >=1.75, you must target at least macOS 10.12 or iOS 10')
+  endif
 endif
 
 py = import('python')

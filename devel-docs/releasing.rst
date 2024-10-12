@@ -15,10 +15,13 @@ off items while making a release.
 - ☐ Copy version number to ``doc/librsvg.toml``.
 - ☐ Compute crate version number and write it to ``rsvg/Cargo.toml``, see :ref:`crate version<crate_version>` below.
 - ☐ Copy the crate version number to the example in `rsvg/src/lib.rs`.
-- ☐ ``cargo update`` - needed because you tweaked ``Cargo.toml``, and
+- ☐ ``cargo update -p librsvg`` - needed because you tweaked ``Cargo.toml``, and
   also to get new dependencies.
 - ☐ Tweak the library version number in ``meson.build`` if the API
   changed; follow the steps there.
+- ☐ Adjust the supported versions in ``README.md``.
+- ☐ Adjust the supported versions in ``devel-docs/supported_versions.rst``.
+- ☐ Adjust the supported versions in ``.gitlab/issue_templates/default.md``.
 
 **Rust Bindings:**
 
@@ -257,15 +260,9 @@ New entries go at the **top** of the file.
 Making a tarball
 ----------------
 
-::
-
-   make distcheck DESTDIR=/tmp/foo
-
-The ``DESTDIR`` is a quirk, required because otherwise the gdk-pixbuf
-loader will try to install itself into the system’s location for pixbuf
-loaders, and it won’t work. The ``DESTDIR`` is what Linux distribution
-packaging scripts use to ``make install`` the compiled artifacts to a
-temporary location before building a system package.
+Don't make a tarball by hand.  Let the CI system do it.  Look for
+``distcheck`` in the checklist above.  That job in the CI pipelines
+has the release tarball which you can download.
 
 Copying the tarball to master.gnome.org
 ---------------------------------------
